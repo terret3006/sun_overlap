@@ -1,0 +1,70 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 30px;
+    background-color: #121212;
+    color: #e0e0e0;
+}
+
+h1, h2 {
+    color: #ffffff;
+    text-align: center;
+}
+
+label {
+    margin-right: 10px;
+    font-weight: bold;
+}
+
+form {
+    margin-bottom: 20px;
+}
+
+select, input[type="date"], button {
+    margin: 10px;
+    padding: 10px;
+    background-color: #1e1e1e;
+    color: #ffffff;
+    border: 1px solid #333;
+    border-radius: 5px;
+}
+
+select:focus, input[type="date"]:focus, button:focus {
+    outline: none;
+    border-color: #6200ee;
+    box-shadow: 0 0 5px #6200ee;
+}
+
+button {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+button:hover {
+    background-color: #333333;
+}
+
+.styled-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+.styled-table th, .styled-table td {
+    padding: 10px 14px;
+    border: 1px solid #333;
+    text-align: center;
+}
+
+.styled-table th {
+    background-color: #212121;
+    color: #ffffff;
+}
+
+.styled-table tr:nth-child(even) {
+    background-color: #1a1a1a;
+}
+
+.styled-table tr:hover {
+    background-color: #2a2a2a;
+}

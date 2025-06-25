@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sun Overlap Calculator Tool</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <h1>Sun Overlap Calculator Tool</h1>
+
+    <form method="POST">
+        <label>Location 1:</label>
+        <select name="loc1" required>
+            <option value="" disabled selected>Select Location 1</option>
+            {% for loc in locations %}
+                <option value="{{ loc }}">{{ loc }}</option>
+            {% endfor %}
+        </select>
+
+        <label>Location 2:</label>
+        <select name="loc2" required>
+            <option value="" disabled selected>Select Location 2</option>
+            {% for loc in locations %}
+                <option value="{{ loc }}">{{ loc }}</option>
+            {% endfor %}
+        </select>
+
+        <label>Start Date:</label>
+        <input type="date" name="start_date" required>
+
+        <label>End Date:</label>
+        <input type="date" name="end_date" required>
+
+        <button type="submit">Submit</button>
+    </form>
+
+    {% if table %}
+        <h2>Overlap Results</h2>
+        <div>{{ table|safe }}</div>
+        <a href="{{ url_for('download', filename=filename) }}">
+            <button>📥 Download Excel</button>
+        </a>
+    {% endif %}
+</body>
+</html>
+<script>
+document.querySelector("form").addEventListener("submit", function (e) {
+    const start = new Date(document.querySelector('input[name="start_date"]').value);
+    const end = new Date(document.querySelector('input[name="end_date"]').value);
+    if (start > end) {
+        alert("🚫 Start date cannot be later than End date!");
+        e.preventDefault();
+    }
+});
+</script>
