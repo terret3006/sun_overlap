@@ -1,28 +1,36 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Sun Overlap Calculator Tool</title>
     <link rel="stylesheet" href="/static/styles.css">
+
+
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/jquery-typeahead/2.11.0/jquery.typeahead.min.css" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-typeahead/2.11.0/jquery.typeahead.min.js"></script>
+
+    
 </head>
+
 <body>
     <h1>Sun Overlap Calculator Tool</h1>
 
     <form method="POST">
         <label>Location 1:</label>
-        <select name="loc1" required>
-            <option value="" disabled selected>Select Location 1</option>
-            {% for loc in locations %}
-                <option value="{{ loc }}">{{ loc }}</option>
-            {% endfor %}
-        </select>
+        <input type="text" id="loc1" placeholder="Type location 1..." autocomplete="off" required>
+        <ul id="loc1_suggestions" class="suggestions"></ul>
+        <input type="hidden" name="loc1_lat" id="loc1_lat">
+        <input type="hidden" name="loc1_lon" id="loc1_lon">
+        <input type="hidden" name="loc1_name" id="loc1_name"> 
 
         <label>Location 2:</label>
-        <select name="loc2" required>
-            <option value="" disabled selected>Select Location 2</option>
-            {% for loc in locations %}
-                <option value="{{ loc }}">{{ loc }}</option>
-            {% endfor %}
-        </select>
+        <input type="text" id="loc2" placeholder="Type location 2..." autocomplete="off" required>
+        <ul id="loc2_suggestions" class="suggestions"></ul>
+        <input type="hidden" name="loc2_lat" id="loc2_lat">
+        <input type="hidden" name="loc2_lon" id="loc2_lon">
+        <input type="hidden" name="loc2_name" id="loc2_name"> 
 
         <label>Start Date:</label>
         <input type="date" name="start_date" required>
@@ -34,21 +42,91 @@
     </form>
 
     {% if table %}
-        <h2>Overlap Results</h2>
-        <div>{{ table|safe }}</div>
-        <a href="{{ url_for('download', filename=filename) }}">
-            <button>📥 Download Excel</button>
-        </a>
-    {% endif %}
+    <h2>Overlap Results</h2>
+    <p>
+        <strong>Location 1:</strong> {{ loc1_name }} (Lat: {{ loc1_lat }}, Lon: {{ loc1_lon }})<br>
+        <strong>Location 2:</strong> {{ loc2_name }} (Lat: {{ loc2_lat }}, Lon: {{ loc2_lon }})<br>
+        <strong>Date Range:</strong> {{ start_date }} to {{ end_date }}
+    </p>
+    <div class="table-scroll-container">
+        {{ table|safe }}
+    </div>
+
+{% endif %}
+
+
+{% if download_token %}
+<a href="{{ url_for('download', token=download_token) }}">
+    <button>📥 Download Excel</button>
+</a>
+
+<form method="POST">
+
+
+    <a href="{{ url_for('reset') }}">
+        <button type="button">Reset</button></a>
+</form>
+{% endif %}
+
+    <script>
+        document.querySelector("form").addEventListener("submit", function (e) {
+            const start = new Date(document.querySelector('input[name="start_date"]').value);
+            const end = new Date(document.querySelector('input[name="end_date"]').value);
+            if (start > end) {
+                alert("🚫 Start date cannot be later than End date!");
+                e.preventDefault();
+            }
+        });
+        function setupAutocomplete(inputId, latId, lonId, nameId, suggestionId) {
+            const input = document.getElementById(inputId);
+            const suggestions = document.getElementById(suggestionId);
+            const nameInput = document.getElementById(nameId);
+
+            let debounce;
+            input.addEventListener("input", () => {
+                clearTimeout(debounce);
+                const query = input.value.trim();
+                suggestions.innerHTML = "";
+                suggestions.style.display = "none";
+
+                if (query.length < 2) return;
+
+                debounce = setTimeout(() => {
+                    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.length === 0) return;
+                            data.forEach(item => {
+                                const li = document.createElement("li");
+                                li.textContent = `${item.display_name} (Lat: ${item.lat}, Lon: ${item.lon})`;
+                                li.style.cursor = "pointer";
+                                li.addEventListener("click", () => {
+                                    input.value = item.display_name;
+                                    nameInput.value = item.display_name;
+                                    document.getElementById(latId).value = item.lat;
+                                    document.getElementById(lonId).value = item.lon;
+                                    suggestions.innerHTML = "";
+                                    suggestions.style.display = "none";
+                                });
+                                suggestions.appendChild(li);
+                            });
+                            suggestions.style.display = "block";
+                        });
+                }, 300);
+            });
+
+            document.addEventListener("click", (e) => {
+                if (!suggestions.contains(e.target) && e.target !== input) {
+                    suggestions.style.display = "none";
+                }
+            });
+        }
+
+       
+        setupAutocomplete("loc1", "loc1_lat", "loc1_lon", "loc1_name", "loc1_suggestions");
+        setupAutocomplete("loc2", "loc2_lat", "loc2_lon", "loc2_name", "loc2_suggestions");
+    </script>
+
 </body>
+
 </html>
-<script>
-document.querySelector("form").addEventListener("submit", function (e) {
-    const start = new Date(document.querySelector('input[name="start_date"]').value);
-    const end = new Date(document.querySelector('input[name="end_date"]').value);
-    if (start > end) {
-        alert("🚫 Start date cannot be later than End date!");
-        e.preventDefault();
-    }
-});
-</script>

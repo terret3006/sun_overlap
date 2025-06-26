@@ -1,52 +1,111 @@
-from flask import Flask, render_template, request, send_file
+from flask import Flask, render_template, request, send_file, redirect, url_for, flash
 import pandas as pd
-from utils.overlap_calc import compute_overlap_dataframe  # Your script as a function
-import io
-from flask import Flask, render_template, request, redirect, url_for, send_from_directory, flash, get_flashed_messages
+from flask import session
+import base64
+from io import BytesIO
+from utils.overlap_calc import compute_overlap_dataframe
 
 app = Flask(__name__)
+app.secret_key = "afmjbegfjub3"  # Needed for session
+from datetime import timedelta
+app.permanent_session_lifetime = timedelta(minutes=100)
 
-# Location dictionary for dropdowns
-LOCATIONS = {
-    "Delhi": (28.6139, 77.2090),
-    "Maine": (43.6591, -70.2568),
-    "Texas": (30.2672, -97.7431),
-    "Illinois": (41.8781, -87.6298),
-    "Mexico": (19.4326, -99.1332),
-    "Bangalore": (12.9716, 77.5946),
-    "United_Kingdom": (51.5072, -0.1276),
-    "New_Zealand": (-41.2865, 174.7762),
-    "Saskatchewan": (50.4452, -104.6189),
-    "Perth_Australia": (-31.9505, 115.8605),
-    "Toronto_Ontario": (43.651070, -79.347015),
-    "Tokyo_Japan": (35.6895, 139.6917),
-    "Sao_Paulo_Brazil": (-23.5505, -46.6333)
-}
+import uuid
+
+app = Flask(__name__)
+app.secret_key = "your_secret_key"
+temp_cache = {}  # Temporary in-memory cache for storing DataFrames
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
-        loc1 = request.form["loc1"]
-        loc2 = request.form["loc2"]
-        start = request.form["start_date"]
-        end = request.form["end_date"]
+        # print(request.form)
+        try:
+            lat1 = float(request.form["loc1_lat"])
+            lon1 = float(request.form["loc1_lon"])
+            lat2 = float(request.form["loc2_lat"])
+            lon2 = float(request.form["loc2_lon"])
+            start = request.form["start_date"]
+            end = request.form["end_date"]
 
-        lat1, lon1 = LOCATIONS[loc1]
-        lat2, lon2 = LOCATIONS[loc2]
-        if start > end:
-            flash("🚫 Start date cannot be later than End date!", "error")
+            if start > end:
+                flash("🚫 Start date cannot be later than End date!", "error")
+                return redirect(url_for("index"))
+
+            loc1 = request.form.get("loc1_name", "Location_1")
+            loc2 = request.form.get("loc2_name", "Location_2")
+
+            # Compute overlap and get DataFrame + filename (not Excel content here)
+            df, _, filename = compute_overlap_dataframe(loc1, lat1, lon1, loc2, lat2, lon2, start, end)
+            table_html = df.to_html(index=False, classes="styled-table")
+
+            # Create unique token to associate download with this DF
+            token = str(uuid.uuid4())
+            temp_cache[token] = {
+                "df": df,
+                "filename": filename
+            }
+
+            return render_template(
+                "index.html",
+                table=table_html,
+                download_token=token,
+                loc1_name=loc1,
+                loc2_name=loc2,
+                start_date=start,
+                end_date=end,
+                loc1_lat=lat1,
+                loc1_lon=lon1,
+                loc2_lat=lat2,
+                loc2_lon=lon2
+            )
+        except Exception as e:
+            flash(f"❌ Error: {e}", "error")
             return redirect(url_for("index"))
 
-        df, filename = compute_overlap_dataframe(loc1, lat1, lon1, loc2, lat2, lon2, start, end)
-        table_html = df.to_html(index=False, classes="styled-table")
+    return render_template("index.html")
 
-        return render_template("index.html", locations=LOCATIONS.keys(), table=table_html, filename=filename)
+@app.route("/reset")
+def reset():
+    session.clear()
+    temp_cache.clear()
+    return redirect(url_for("index"))
 
-    return render_template("index.html", locations=LOCATIONS.keys())
 
-@app.route("/download/<filename>")
-def download(filename):
-    path = f"generated_files/{filename}"
-    return send_file(path, as_attachment=True)
+from flask import send_file
+from io import BytesIO
+import pandas as pd
+from openpyxl.styles import Alignment
+from openpyxl import load_workbook
+
+
+@app.route("/download/<token>")
+def download(token):
+    if token not in temp_cache:
+        flash("⚠️ No Excel data available to download.")
+        return redirect(url_for("index"))
+
+    data = temp_cache.pop(token)
+    df = data["df"]
+    filename = data["filename"]
+
+    buffer = BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False)
+        ws = writer.book.active
+
+        # Styling
+        for col in ws.columns:
+            max_len = max(len(str(cell.value)) for cell in col if cell.value)
+            for cell in col:
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+            ws.column_dimensions[col[0].column_letter].width = max_len + 2
+
+    buffer.seek(0)
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)

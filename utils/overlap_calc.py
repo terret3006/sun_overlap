@@ -61,35 +61,34 @@ def calculate_overlap(row, loc1, loc2):
     return round(instance1), round(instance2), round(total_overlap)
 
 
+from datetime import datetime
+import pandas as pd
+from openpyxl.styles import Alignment
+from io import BytesIO
+from openpyxl import load_workbook
+
 def compute_overlap_dataframe(loc1, lat1, lon1, loc2, lat2, lon2, start_str, end_str):
     start_date = datetime.strptime(start_str, "%Y-%m-%d")
     end_date = datetime.strptime(end_str, "%Y-%m-%d")
 
     loc1_clean = loc1.replace(" ", "_")
     loc2_clean = loc2.replace(" ", "_")
+    date_range_str = f"{start_date.strftime('%Y%m%d')}_to_{end_date.strftime('%Y%m%d')}"
 
-    # Add suffixes to differentiate even if loc1 == loc2
+    # Get sun data for both locations
     df1 = get_sun_data(lat1, lon1, start_date, end_date, f"{loc1_clean}_A")
     df2 = get_sun_data(lat2, lon2, start_date, end_date, f"{loc2_clean}_B")
 
+    # Merge on date
     df = pd.merge(df1, df2, on="Date")
 
+    # Compute overlaps
     df[["Overlap Instance 1 (min)", "Overlap Instance 2 (min)", "Total Overlap (min)"]] = df.apply(
-        lambda row: calculate_overlap(row, f"{loc1_clean}_A", f"{loc2_clean}_B"), axis=1, result_type="expand")
+        lambda row: calculate_overlap(row, f"{loc1_clean}_A", f"{loc2_clean}_B"),
+        axis=1,
+        result_type="expand"
+    )
 
-    filename = f"Sun_Overlap_{loc1_clean}_{loc2_clean}_{start_date.year}.xlsx"
-    filepath = os.path.join("generated_files", filename)
-    os.makedirs("generated_files", exist_ok=True)
-    df.to_excel(filepath, index=False)
-
-    # Apply Excel styling
-    wb = load_workbook(filepath)
-    ws = wb.active
-    for col in ws.columns:
-        max_len = max(len(str(cell.value)) for cell in col if cell.value)
-        for cell in col:
-            cell.alignment = Alignment(horizontal='center', vertical='center')
-        ws.column_dimensions[col[0].column_letter].width = max_len + 2
-    wb.save(filepath)
-
-    return df, filename
+    # Only return the DataFrame and filename (no saving here)
+    filename = f"Sun_Overlap_{loc1_clean}_and_{loc2_clean}_{date_range_str}.xlsx"
+    return df, None, filename  # second value is unused in this design
