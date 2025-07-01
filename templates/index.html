@@ -2,72 +2,86 @@
 <html>
 
 <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Sun Overlap Calculator Tool</title>
     <link rel="stylesheet" href="/static/styles.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
 
+
+    <link rel="icon" href="static/favicon.png" type="image/png">
 
     <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/jquery-typeahead/2.11.0/jquery.typeahead.min.css" />
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-typeahead/2.11.0/jquery.typeahead.min.js"></script>
 
-    
+
 </head>
 
 <body>
-    <h1>Sun Overlap Calculator Tool</h1>
+   <div class="container">
+    <h1 class="mb-4">🌞 Sun Overlap Calculator Tool</h1>
 
-    <form method="POST">
-        <label>Location 1:</label>
-        <input type="text" id="loc1" placeholder="Type location 1..." autocomplete="off" required>
+    <form method="POST" class="row g-3">
+      <div class="col-md-6 position-relative">
+        <label for="loc1" class="form-label">Location 1</label>
+        <input type="text" id="loc1" name="loc1" class="form-control" placeholder="Type location 1..." autocomplete="off" required>
         <ul id="loc1_suggestions" class="suggestions"></ul>
         <input type="hidden" name="loc1_lat" id="loc1_lat">
         <input type="hidden" name="loc1_lon" id="loc1_lon">
-        <input type="hidden" name="loc1_name" id="loc1_name"> 
+        <input type="hidden" name="loc1_name" id="loc1_name">
+      </div>
 
-        <label>Location 2:</label>
-        <input type="text" id="loc2" placeholder="Type location 2..." autocomplete="off" required>
+      <div class="col-md-6 position-relative">
+        <label for="loc2" class="form-label">Location 2</label>
+        <input type="text" id="loc2" name="loc2" class="form-control" placeholder="Type location 2..." autocomplete="off" required>
         <ul id="loc2_suggestions" class="suggestions"></ul>
         <input type="hidden" name="loc2_lat" id="loc2_lat">
         <input type="hidden" name="loc2_lon" id="loc2_lon">
-        <input type="hidden" name="loc2_name" id="loc2_name"> 
+        <input type="hidden" name="loc2_name" id="loc2_name">
+      </div>
 
-        <label>Start Date:</label>
-        <input type="date" name="start_date" required>
+      <div class="col-md-6">
+        <label for="start_date" class="form-label">Start Date</label>
+        <input type="date" id="start_date" name="start_date" class="form-control" required>
+      </div>
 
-        <label>End Date:</label>
-        <input type="date" name="end_date" required>
+      <div class="col-md-6">
+        <label for="end_date" class="form-label">End Date</label>
+        <input type="date" id="end_date" name="end_date" class="form-control" required>
+      </div>
 
-        <button type="submit">Submit</button>
+      <div class="col-12 text-center">
+        <button type="submit" class="btn btn-warning mt-3">Submit</button>
+      </div>
     </form>
 
     {% if table %}
-    <h2>Overlap Results</h2>
+    <h2 class="mt-5">Overlap Results</h2>
     <p>
-        <strong>Location 1:</strong> {{ loc1_name }} (Lat: {{ loc1_lat }}, Lon: {{ loc1_lon }})<br>
-        <strong>Location 2:</strong> {{ loc2_name }} (Lat: {{ loc2_lat }}, Lon: {{ loc2_lon }})<br>
-        <strong>Date Range:</strong> {{ start_date }} to {{ end_date }}
+      <strong>Location 1:</strong> {{ loc1_name }} (Lat: {{ loc1_lat }}, Lon: {{ loc1_lon }})<br>
+      <strong>Location 2:</strong> {{ loc2_name }} (Lat: {{ loc2_lat }}, Lon: {{ loc2_lon }})<br>
+      <strong>Date Range:</strong> {{ start_date }} to {{ end_date }}
     </p>
     <div class="table-scroll-container">
-        {{ table|safe }}
+      {{ table|safe }}
     </div>
+    {% endif %}
 
-{% endif %}
+    {% if download_token %}
+    <div class="text-center mt-4">
+      <a href="{{ url_for('download', token=download_token) }}" class="btn btn-success me-2">📥 Download Excel</a>
+      <a href="{{ url_for('reset') }}" class="btn btn-secondary">Reset</a>
+    </div>
+    {% endif %}
+    <br>
+    <br>
+    <br>
+    <br>
+  </div>
 
-
-{% if download_token %}
-<a href="{{ url_for('download', token=download_token) }}">
-    <button>📥 Download Excel</button>
-</a>
-
-<form method="POST">
-
-
-    <a href="{{ url_for('reset') }}">
-        <button type="button">Reset</button></a>
-</form>
-{% endif %}
-
+  
     <script>
         document.querySelector("form").addEventListener("submit", function (e) {
             const start = new Date(document.querySelector('input[name="start_date"]').value);
@@ -122,7 +136,7 @@
             });
         }
 
-       
+
         setupAutocomplete("loc1", "loc1_lat", "loc1_lon", "loc1_name", "loc1_suggestions");
         setupAutocomplete("loc2", "loc2_lat", "loc2_lon", "loc2_name", "loc2_suggestions");
     </script>
