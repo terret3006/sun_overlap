@@ -4,17 +4,59 @@ from flask import session
 import base64
 from io import BytesIO
 from utils.overlap_calc import compute_overlap_dataframe
-
 app = Flask(__name__)
-app.secret_key = "afmjbegfjub3"  # Needed for session
+app.secret_key = "afmjbegfjub3"  
+import requests 
 from datetime import timedelta
+from datetime import datetime, timedelta
+import re
+from flask import jsonify
 app.permanent_session_lifetime = timedelta(minutes=100)
 
 import uuid
 
 app = Flask(__name__)
 app.secret_key = "your_secret_key"
-temp_cache = {}  # Temporary in-memory cache for storing DataFrames
+temp_cache = {}  
+
+
+
+@app.route("/api/date-range")
+def get_api_date_range():
+    test_url = "https://api.open-meteo.com/v1/forecast"
+    today = datetime.utcnow().date()
+    params = {
+        "latitude": 0, 
+        "longitude": 0,
+        "daily": "sunrise,sunset",
+        "timezone": "UTC",
+        "start_date": today.strftime("%Y-%m-%d"),
+        "end_date": (today + timedelta(days=20)).strftime("%Y-%m-%d")
+    }
+
+    try:
+        response = requests.get(test_url, params=params)
+        if response.status_code == 400:
+            error_msg = response.json().get("reason", "")
+            match = re.search(r"from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})", error_msg)
+            if match:
+                min_date = match.group(1)
+                max_date = match.group(2)
+                print(f"[✔] Open-Meteo date range detected: {min_date} to {max_date}")
+                return jsonify({
+                    "min_date": min_date,
+                    "max_date": max_date
+                })
+    except Exception as e:
+        print("[❌] Error detecting API range:", e)
+
+    print("[⚠️] Using fallback date range due to failure.")
+    return jsonify({
+        "min_date": "2016-01-01",
+        "max_date": (today + timedelta(days=7)).strftime("%Y-%m-%d")
+    })
+
+
 
 @app.route("/", methods=["GET", "POST"])
 def index():
