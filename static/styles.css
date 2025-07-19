@@ -136,3 +136,26 @@ button[type="submit"] {
     padding-left: 20px;
     padding-right: 20px;
 }
+
+/* Light dark grey background for active tab */
+.nav-tabs .nav-link.active {
+    background-color: #2a2a2a !important;
+    color: #ffc107 !important; /* keep sun tab yellow or change as needed */
+    border-color: #444 #444 #2a2a2a;
+}
+
+/* Default (inactive) tab buttons */
+.nav-tabs .nav-link {
+    background-color: #1a1a1a;
+    color: #ccc;
+    border: 1px solid #444;
+}
+
+/* Make tab container borderless if you want a cleaner look */
+.nav-tabs {
+    border-bottom: 1px solid #444;
+}
+/* Force Moon tab to remain blue (Bootstrap active overrides this by default) */
+#moon-tab.text-info.active {
+  color: #0dcaf0 !important; /* Bootstrap's info color */
+}

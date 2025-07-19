@@ -3,7 +3,7 @@ import pandas as pd
 from flask import session
 import base64
 from io import BytesIO
-from utils.overlap_calc import compute_overlap_dataframe
+from utils.overlap_calc import compute_overlap_dataframe, compute_moon_overlap_dataframe
 app = Flask(__name__)
 app.secret_key = "afmjbegfjub3"  
 import requests 
@@ -60,6 +60,8 @@ def get_api_date_range():
 
 @app.route("/", methods=["GET", "POST"])
 def index():
+    active_tab = request.args.get("tab", "sun")  # Get active tab from URL
+
     if request.method == "POST":
         # print(request.form)
         try:
@@ -79,6 +81,7 @@ def index():
 
             # Compute overlap and get DataFrame + filename (not Excel content here)
             df, _, filename = compute_overlap_dataframe(loc1, lat1, lon1, loc2, lat2, lon2, start, end)
+            # print(df.head(10))
             table_html = df.to_html(index=False, classes="styled-table")
 
             # Create unique token to associate download with this DF
@@ -99,19 +102,77 @@ def index():
                 loc1_lat=lat1,
                 loc1_lon=lon1,
                 loc2_lat=lat2,
-                loc2_lon=lon2
+                loc2_lon=lon2,
+                active_tab="sun" 
             )
         except Exception as e:
             flash(f"❌ Error: {e}", "error")
             return redirect(url_for("index"))
 
-    return render_template("index.html")
+    return render_template("index.html",active_tab=active_tab)
 
-@app.route("/reset")
+
+@app.route("/moon", methods=["POST"])
+def moon_overlap():
+    active_tab = request.args.get("tab", "moon")  # Get active tab from URL
+
+    try:
+        lat1 = float(request.form["moon_loc1_lat"])
+        lon1 = float(request.form["moon_loc1_lon"])
+        lat2 = float(request.form["moon_loc2_lat"])
+        lon2 = float(request.form["moon_loc2_lon"])
+        start = request.form["moon_start_date"]
+        end = request.form["moon_end_date"]
+        print(request.form)
+
+        if start > end:
+            flash("🚫 Start date cannot be later than End date!", "error")
+            return redirect(url_for("index"))
+
+        loc1 = request.form.get("moon_loc1_name", "Moon_Location_1")
+        loc2 = request.form.get("moon_loc2_name", "Moon_Location_2")
+
+        # Compute moon overlap
+        df, _, filename = compute_moon_overlap_dataframe(loc1, lat1, lon1, loc2, lat2, lon2, start, end)
+        # print("[🧾] Moon Overlap DataFrame:")
+        # print(df.head(10)) 
+        table_html = df.to_html(index=False, classes="styled-table")
+
+        # Cache data with token
+        token = str(uuid.uuid4())
+        temp_cache[token] = {
+            "df": df,
+            "filename": filename
+        }
+
+        return render_template(
+            "index.html",
+            moon_table=table_html,
+            moon_download_token=token,
+            moon_loc1_name=loc1,
+            moon_loc2_name=loc2,
+            moon_start_date=start,
+            moon_end_date=end,
+            moon_loc1_lat=lat1,
+            moon_loc1_lon=lon1,
+            moon_loc2_lat=lat2,
+            moon_loc2_lon=lon2,
+            active_tab="moon" 
+        )
+    except Exception as e:
+        flash(f"❌ Moon Overlap Error: {e}", "error")
+        return redirect(url_for("index"),active_tab=active_tab)
+
+
+
+@app.route("/reset", methods=["GET"])
 def reset():
     session.clear()
     temp_cache.clear()
-    return redirect(url_for("index"))
+    active_tab = request.args.get("tab", "sun")  # default to sun
+    return redirect(url_for("index", tab=active_tab))
+
+
 
 
 from flask import send_file
@@ -147,6 +208,30 @@ def download(token):
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
 
+@app.route("/download_moon/<token>")
+def download_moon(token):
+    if token not in temp_cache:
+        flash("⚠️ No Excel data available to download.")
+        return redirect(url_for("index"))
+
+    data = temp_cache.pop(token)
+    df = data["df"]
+    filename = data["filename"]
+
+    buffer = BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False)
+        ws = writer.book.active
+
+        # Styling
+        for col in ws.columns:
+            max_len = max(len(str(cell.value)) for cell in col if cell.value)
+            for cell in col:
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+            ws.column_dimensions[col[0].column_letter].width = max_len + 2
+
+    buffer.seek(0)
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
 
 if __name__ == '__main__':
